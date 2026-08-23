@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Refresh Prioritization: A Baseline-vs-Model Honesty Audit — Husnain</title>
+<meta name="description" content="A research paper on refresh/content opportunity scoring, built on the FlyRank ML Internship dataset — where an honest audit found a simple baseline rule beating two learned models.">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #FAFAF8;
+    font-family: 'Inter', sans-serif;
+    color: #1A1A1A;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 60px 24px 100px 24px; }
+
+  .masthead { text-align: center; margin-bottom: 50px; }
+  .logo-mark {
+    width: 56px; height: 56px; border-radius: 12px; background: #3B5BDB;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; color: #FAFAF8;
+    margin: 0 auto 20px auto;
+  }
+  .kicker { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #8A887F; margin-bottom: 14px; }
+  h1 {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 34px;
+    color: #1A1A1A; margin-bottom: 14px; line-height: 1.2;
+  }
+  .byline { font-size: 15px; color: #55554F; }
+  .byline a { color: #3B5BDB; text-decoration: none; }
+
+  .abstract-box {
+    background: #EEF1FC; border-left: 4px solid #3B5BDB; border-radius: 6px;
+    padding: 24px 28px; margin: 40px 0 50px 0; font-size: 15px;
+  }
+  .abstract-box .label { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: #3B5BDB; margin-bottom: 10px; }
+
+  h2 {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px;
+    color: #1A1A1A; margin: 50px 0 16px 0; padding-top: 20px; border-top: 1px solid #E3E1D8;
+  }
+  h3 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; margin: 28px 0 10px 0; }
+  p { font-size: 15px; color: #262626; margin-bottom: 14px; }
+  ul, ol { margin: 0 0 16px 22px; font-size: 15px; color: #262626; }
+  li { margin-bottom: 6px; }
+
+  .callout {
+    background: #FDF3EF; border-left: 4px solid #FF6B4A; border-radius: 6px;
+    padding: 16px 20px; margin: 20px 0; font-size: 14px;
+  }
+  .callout .label { font-weight: 700; color: #B8391E; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+
+  figure { margin: 24px 0; text-align: center; }
+  figure img { max-width: 100%; border-radius: 8px; border: 1px solid #E3E1D8; }
+  figcaption { font-size: 13px; color: #8A887F; margin-top: 10px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+  th { text-align: left; background: #1A1A1A; color: #FAFAF8; padding: 10px 12px; font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 10px 12px; border-bottom: 1px solid #E3E1D8; }
+  tr:nth-child(even) td { background: #F2F1EC; }
+
+  code { background: #EEEEE8; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'Consolas', monospace; }
+
+  .reason-code { display: inline-block; background: #E1F5EE; color: #085041; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 5px; }
+
+  footer { margin-top: 70px; padding-top: 24px; border-top: 1px solid #E3E1D8; font-size: 13px; color: #8A887F; text-align: center; }
+  footer a { color: #3B5BDB; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="logo-mark">MH</div>
+    <div class="kicker">Research Paper &middot; FlyRank AI Fluency &amp; ML Internship Capstone</div>
+    <h1>Content Refresh Prioritization: A Baseline-vs-Model Honesty Audit</h1>
+    <div class="byline">By <a href="https://linkedin.com/in/muhammad-husnain-fareed" target="_blank" rel="noopener">Husnain</a> &middot; BS Artificial Intelligence, National Textile University</div>
+  </div>
+
+  <div class="abstract-box">
+    <div class="label">Abstract</div>
+    <p style="margin-bottom:0;">
+      Which declining content pages should a reviewer with limited time check first — and can a learned model actually outperform a simple hand-written rule at that task?
+      I built a transparent baseline rule and two learned models (Logistic Regression, Random Forest) on FlyRank's anonymized starter dataset (30,000 content items across 32 pseudonymized clients),
+      validated under a client-grouped split to prevent memorization. The first evaluation looked perfect for the baseline — a circular artifact, not a real result, since the metric used was the exact
+      label the baseline was gated on. Under a stricter, non-circular target (severe decline combined with real traffic at stake) and an honest split, the simple baseline (ROC-AUC 0.866) clearly
+      outperformed both learned models (0.603 and 0.598). The actionable output is a ranked action playbook built on the baseline — because here, complexity did not earn its place.
+    </p>
+  </div>
+
+  <h2>Introduction</h2>
+  <p>
+    Content teams with large page inventories can't manually review every page for a possible refresh — someone or something has to decide which pages to look at first, out of thousands.
+    This project treats that as a decision-support ranking problem: given a page's recent search and engagement signals, produce a ranked review queue that helps a human reviewer spend
+    limited time where it's most likely to matter.
+  </p>
+  <p>
+    The cost of getting this wrong runs in both directions. A false positive wastes a reviewer's time on a page that wasn't really a priority. A false negative is more expensive: a genuinely
+    high-value declining page keeps losing visibility, unnoticed, until someone finds it by accident. Because of that asymmetry, this project treats missing a real priority as more costly than
+    flagging one extra page worth a quick look.
+  </p>
+
+  <h2>Data</h2>
+  <p>
+    This project uses the small anonymized starter dataset that ships with the FlyRank ML Internship starter repository: <code>content_refresh_anonymized.csv</code> — 30,000 rows,
+    one row per pseudonymized content item, spanning 32 pseudonymized clients, with trailing-90-day search and engagement metrics. No client names, domains, URLs, or raw queries are present
+    in this release or anywhere in this paper — only pseudonymized identifiers used for grouping and joining.
+  </p>
+  <p>
+    <strong>Eligibility filter:</strong> <code>impressions_90d &gt; 0</code> and <code>content_age_days &gt;= 90</code> — all 30,000 rows in the starter release met this filter.
+  </p>
+  <p>
+    <strong>Explicitly excluded from modeling:</strong> <code>trend_direction</code> and <code>trend_pct</code> — both are used only to construct labels and evaluation targets, never as
+    model features, since the label was computed from them. Using either as a feature would let a model learn to copy its own answer rather than find real signal (see Methodology).
+  </p>
+
+  <h2>Methodology</h2>
+  <h3>Lane and target</h3>
+  <p>
+    This project follows the <strong>Refresh / Content Opportunity Scoring</strong> lane: score which pages are worth reviewing first for a possible refresh. The starter label,
+    <code>is_declining_label</code> (<code>trend_direction == "down"</code>), is a proxy from the current window, not a validated future-window outcome — a limitation carried
+    through this entire project and named explicitly in the Limitations section.
+  </p>
+  <p>
+    A second, stricter evaluation target, <code>true_priority</code>, was constructed partway through this project after discovering that the starter label made the baseline's own
+    evaluation circular (see Results). <code>true_priority</code> flags pages that are both severely declining (bottom third of decline magnitude among decliners) and carry real traffic
+    at stake (impressions at or above the median for declining pages) — still built only from label-construction fields, never used as a feature.
+  </p>
+
+  <h3>Baseline</h3>
+  <p>A transparent, hand-written rule, readable in one sentence: a page is worth reviewing if it's declining and visible (real impressions), ranked higher the more impressions it's wasting,
+  with extra priority if it's also either moderately stale (30&ndash;110 days since last update) or badly underperforming CTR for its position.</p>
+
+  <h3>Features (11, all pre-decision, none label-derived)</h3>
+  <p><code>impressions_90d</code>, <code>sessions_90d</code>, <code>avg_position</code>, <code>ctr</code>, <code>word_count</code>, <code>content_age_days</code>,
+  <code>days_since_last_update</code>, <code>search_volume</code>, <code>cpc</code>, <code>engagement_rate</code>, <code>scroll_rate</code>.</p>
+
+  <h3>Models</h3>
+  <p>Logistic Regression and Random Forest (200 trees, max depth 8, min leaf 20) — chosen per the "readable first, stronger second" rule: start simple, add complexity only once it's earned
+  its place against a real comparison.</p>
+
+  <h3>Validation design</h3>
+  <p>
+    The starter data spans 32 clients. A plain random split lets rows from the same client appear in both train and test, letting a model partly memorize client identity instead of learning
+    a transferable pattern. All headline results use a <strong>client-grouped split</strong> (30% test, zero client overlap verified). A random split is also reported once, specifically to
+    show the size of that gap (see Results).
+  </p>
+
+  <h3>Leakage audit</h3>
+  <p>
+    Following the project's leakage-hunting checklist: a timeline was drawn confirming every feature is observed strictly before the label window; no product-decision flags exist in this
+    dataset to misuse; and, as a direct test of the evaluation harness itself, <code>trend_pct</code> was deliberately added back in as a feature. ROC-AUC jumped from 0.830 to a perfect
+    1.000, with <code>trend_pct</code> alone taking 56% of feature importance &mdash; confirming the harness correctly detects a planted leak. <code>trend_direction</code> and
+    <code>trend_pct</code> stay excluded from every real feature set in this project.
+  </p>
+
+  <h2>Results</h2>
+  <h3>Finding 1 &mdash; the first comparison was circular</h3>
+  <p>
+    The baseline rule's score is gated by a multiplicative <code>declining_flag</code> &mdash; meaning any row it scores above zero is, by construction, guaranteed to have
+    <code>is_declining_label == 1</code>. Evaluating the baseline against that same label is a tautology, not a finding: precision@20 comes out to a perfect 1.000, which looks
+    impressive and means nothing.
+  </p>
+  <figure>
+    <img src="assets/chart_circularity.png" alt="Bar chart showing the baseline's circular precision@20 of 1.000 versus honest precision@20 values under the true_priority target">
+    <figcaption>Fig. 1 &mdash; The baseline's "perfect" score only holds against the label it was gated on. Against the honest target, all three methods score far lower.</figcaption>
+  </figure>
+
+  <h3>Finding 2 &mdash; under an honest target, the baseline won</h3>
+  <p>
+    Re-evaluated against <code>true_priority</code>, with the same client-grouped split for every method:
+  </p>
+  <table>
+    <tr><th>Method</th><th>Precision@20</th><th>Precision@50</th><th>ROC-AUC</th></tr>
+    <tr><td><strong>Baseline rule</strong></td><td><strong>0.150</strong></td><td><strong>0.100</strong></td><td><strong>0.866</strong></td></tr>
+    <tr><td>Logistic Regression</td><td>0.050</td><td>0.020</td><td>0.603</td></tr>
+    <tr><td>Random Forest</td><td>0.000</td><td>0.020</td><td>0.598</td></tr>
+  </table>
+  <p style="font-size:13px; color:#8A887F;">Base rate for <code>true_priority</code> in the test set: 0.040.</p>
+  <figure>
+    <img src="assets/chart_honest_comparison.png" alt="Bar chart of ROC-AUC for baseline, logistic regression, and random forest against true_priority">
+    <figcaption>Fig. 2 &mdash; Honest comparison: the baseline's secondary rules (staleness, CTR) tracked real severity and traffic better than either learned model, on this slice.</figcaption>
+  </figure>
+  <p>
+    Both models were trained to predict <code>is_declining_label</code> &mdash; a simple yes/no &mdash; not the stricter <code>true_priority</code> target they were evaluated against.
+    That target mismatch, not model capacity, looks like the main driver of the gap: a follow-up model trained directly on <code>true_priority</code> (Section: Reproducibility) reached
+    ROC-AUC 0.830 under the same grouped split &mdash; far closer to the baseline &mdash; suggesting the fix is aiming the model at the right target, not making it more complex.
+  </p>
+
+  <h3>Finding 3 &mdash; validation design changed the answer</h3>
+  <figure>
+    <img src="assets/chart_split_gap.png" alt="Bar chart comparing ROC-AUC under a random split versus a client-grouped split">
+    <figcaption>Fig. 3 &mdash; Same model, same data, same target &mdash; only the split changed. Every one of the random split's 31 test clients had also appeared in training.</figcaption>
+  </figure>
+  <p>
+    A plain random split reported ROC-AUC 0.792 &mdash; a number that would have been easy to headline. Under the client-grouped split, the honest number was 0.598. The 0.194 gap is not
+    noise; it's a direct measurement of how much of the random split's apparent skill was the model partially recognizing which client a row belonged to.
+  </p>
+
+  <h3>Signal audit</h3>
+  <p>Two signals behind the baseline's rules were checked against real bucket tables before being trusted:</p>
+  <figure>
+    <img src="assets/chart_ctr_position.png" alt="Bar chart showing CTR declining monotonically from top-3 position tier to deep position tier">
+    <figcaption>Fig. 4 &mdash; CONFIRMED: CTR falls cleanly and monotonically as position tier worsens, holding at real sample sizes in every tier.</figcaption>
+  </figure>
+  <figure>
+    <img src="assets/chart_staleness.png" alt="Bar chart showing decline rate by staleness bucket, non-monotonic">
+    <figcaption>Fig. 5 &mdash; MIXED: decline rate rises from fresh to moderately stale, but reverses in the 110+ day bucket (n=230, too small to trust alone). Staleness is used only as a secondary priority boost, never the primary signal, because of this.</figcaption>
+  </figure>
+
+  <h3>Error analysis</h3>
+  <p>
+    The Random Forest's highest-confidence miss (score 0.865) was a page with real <code>trend_pct</code> of <strong>+43.3%</strong> &mdash; a page that was actually improving, not
+    declining. That's a genuine directional error, not just a near-miss on priority ranking. Separately, the model's three lowest-ranked true priorities all had severe declines
+    (&minus;86% to &minus;98%) but only moderate impressions relative to the training distribution &mdash; consistent with the model over-relying on raw traffic volume as a stand-in
+    for importance, when volume and severity are not the same thing.
+  </p>
+
+  <h2>Limitations &amp; Honest Framing</h2>
+  <ul>
+    <li>This is an <strong>observational, cross-sectional</strong> analysis of one dataset snapshot &mdash; no experiment was run, so nothing here supports a causal claim that refreshing
+    a page <em>will</em> improve it. The honest framing is decision-support: these pages <em>look worth reviewing first</em>, based on observed patterns.</li>
+    <li>Built and validated on the <strong>30,000-row anonymized starter dataset only</strong> (32 clients) &mdash; not the full warehouse release. Findings here should be re-validated
+    at scale before being treated as portfolio-wide.</li>
+    <li><code>is_declining_label</code> is a proxy computed from the current window, not a genuine future-window outcome &mdash; a stronger version of this project would define
+    <code>prior window &rarr; future window</code> labels with a full leakage audit on the larger warehouse release.</li>
+    <li>The stale (110d+) bucket (n=230) is too small to support a standalone claim and is reported with that caveat attached, not as a headline number.</li>
+  </ul>
+
+  <h2>Ranked Recommendations</h2>
+  <p>
+    Because the baseline outperformed both models under honest evaluation, the shipped action playbook is built on the <strong>baseline rule</strong>, not the more complex model &mdash;
+    shipping the model here would have meant choosing complexity over results.
+  </p>
+  <table>
+    <tr><th>Reason code</th><th>Recommended action</th><th>Why</th></tr>
+    <tr><td><span class="reason-code">low_ctr_visible_page</span></td><td>Rewrite title/meta</td><td>Ranks well enough to be seen but isn't converting visibility into clicks</td></tr>
+    <tr><td><span class="reason-code">moderately_stale_page</span></td><td>Content refresh review</td><td>30&ndash;110 days since update &mdash; a mixed signal, so flagged for review, not automatic action</td></tr>
+    <tr><td><span class="reason-code">declining_with_demand</span></td><td>Monitor or review</td><td>Declining and visible, lowest-confidence category</td></tr>
+  </table>
+  <p>9,961 of 30,000 eligible pages were flagged for review under this rule.</p>
+
+  <div class="callout">
+    <div class="label">What should never be automated</div>
+    Never auto-publish, auto-rewrite, or auto-consolidate any page from this output. Never present this as proof a refresh will work &mdash; no experiment was run. Never treat the
+    stale (110d+) bucket as strong standalone evidence. Never ship this queue to a client-facing report without a human reviewer checking it first &mdash; a known share of any top-K
+    list will be a weak pick by construction (e.g. a page flagged only for staleness despite already having strong CTR and position).
+  </div>
+
+  <h2>Reproducibility</h2>
+  <p>Every notebook behind this paper is in the project repository, in order:</p>
+  <ul>
+    <li><code>work/notebooks/w01_research_question.ipynb</code> &mdash; lane framing and starter data first look</li>
+    <li><code>work/notebooks/w02_ml_task_framing.ipynb</code> &mdash; task type, target, and success metric</li>
+    <li><code>work/notebooks/w03_data_contract.ipynb</code> &mdash; data contract and warehouse verification queries</li>
+    <li><code>work/notebooks/w04_baseline_score.ipynb</code> &mdash; the baseline rule, signal checks, top-20 review</li>
+    <li><code>work/notebooks/w05_model.ipynb</code> &mdash; Logistic Regression and Random Forest, first honest comparison</li>
+    <li><code>work/notebooks/w06_validation_audit.ipynb</code> &mdash; the random-vs-grouped split audit and deliberate leakage test</li>
+    <li><code>work/notebooks/w07_action_playbook.ipynb</code> &mdash; the ranked action playbook and this paper's exports</li>
+  </ul>
+  <p>Repository: <a href="https://github.com/m-husnain-dev/ml-internship" target="_blank" rel="noopener">github.com/m-husnain-dev/ml-internship</a></p>
+
+  <footer>
+    Built on the FlyRank ML Internship dataset &mdash; <a href="https://flyrank.ai" target="_blank" rel="noopener">flyrank.ai</a>
+  </footer>
+
+</div>
+</body>
+</html>
